@@ -50,7 +50,7 @@ class LaneDataset(Dataset):
         filename = self.filenames[index]
 
         # Read an image and its ground-truth
-        img = Image.open(self.data_path + '/images/' + 'DSC_' + filename + '.jpg').convert('RGB')    
+        img = Image.open(self.data_path + '/images/' + 'DSC_' + filename + '.png').convert('RGB')    
         #bài của thầy thanh
         #gt = Image.open(self.data_path + '/groundtruth/' + filename + '_lane.png')
         
