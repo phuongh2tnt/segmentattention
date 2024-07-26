@@ -15,10 +15,11 @@ class PatchEmbedding(nn.Module):
         return x
 
 class FinalPatchExpansion(nn.Module):
-    def __init__(self, dim):
+    def __init__(self, dim, out_size):
         super().__init__()
         self.expand = nn.ConvTranspose2d(dim, dim // 2, kernel_size=2, stride=2)
         self.norm = nn.LayerNorm(dim // 2)
+        self.out_size = out_size
 
     def forward(self, x):
         B, H, W, C = x.shape
@@ -125,7 +126,7 @@ class SwinUNet(nn.Module):
         self.encoder = Encoder(C, (H // patch_size, W // patch_size), num_blocks)
         self.bottleneck = SwinBlock(C * (2 ** num_blocks), (H // (patch_size * (2 ** num_blocks)), W // (patch_size * (2 ** num_blocks))))
         self.decoder = Decoder(C, (H // patch_size, W // patch_size), num_blocks)
-        self.final_expansion = FinalPatchExpansion(C)
+        self.final_expansion = FinalPatchExpansion(C, (H, W))  # Pass the original image size for final expansion
         self.head = nn.Conv2d(C // 2, num_class, 1)  # Adjusted C // 2 for final expansion output
 
     def forward(self, x):
@@ -135,4 +136,5 @@ class SwinUNet(nn.Module):
         x = self.decoder(x, skip_ftrs[::-1])
         x = self.final_expansion(x)
         x = self.head(x.permute(0, 3, 1, 2))
-        return x
+        return nn.functional.interpolate(x, size=(480, 480), mode='bilinear', align_corners=False)  # Upsample to original size
+
