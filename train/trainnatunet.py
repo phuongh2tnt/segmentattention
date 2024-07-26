@@ -94,7 +94,7 @@ if __name__ == "__main__":
                                                num_workers=6)
 
     # 3. Create a segmentation model using SwinUNet
-    model = SwinUNet(
+    model = NatUNet(
         H=cmd_args.img_size,
         W=cmd_args.img_size,
         ch=3,  # số kênh đầu vào (RGB)
