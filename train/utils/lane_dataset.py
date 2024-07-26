@@ -49,8 +49,8 @@ class LaneDataset(Dataset):
     def __getitem__(self, index):
         filename = self.filenames[index]
 
-        # Read an image and its ground-truth
-        img = Image.open(self.data_path + '/images/' + 'DSC_' + filename + '.png').convert('RGB')    
+        # Read an image and its ground-truth toi khong viet hoa
+        img = Image.open(self.data_path + '/images/' + 'DSC_' + filename + '.JPG').convert('RGB')    
         #bài của thầy thanh
         #gt = Image.open(self.data_path + '/groundtruth/' + filename + '_lane.png')
         
