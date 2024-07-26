@@ -174,7 +174,7 @@ class NatUNet(nn.Module):
         super().__init__()
         self.patch_embed = PatchEmbedding(ch, C, patch_size)
         self.encoder = Encoder(C, (H // patch_size, W // patch_size), num_blocks)
-        self.bottleneck = SwinBlock(C * (2 ** num_blocks), (H // (patch_size * (2 ** num_blocks)), W // (patch_size * (2 ** num_blocks))))
+        self.bottleneck =NeighborhoodAttentionBlock(C * (2 ** num_blocks), (H // (patch_size * (2 ** num_blocks)), W // (patch_size * (2 ** num_blocks))))
         self.decoder = Decoder(C, (H // patch_size, W // patch_size), num_blocks)
         self.final_expansion = FinalPatchExpansion(C, (H, W))  # Pass the original image size for final expansion
         self.head = nn.Conv2d(C // 2, num_class, 1)  # Adjusted C // 2 for final expansion output
