@@ -81,13 +81,13 @@ if __name__ == "__main__":
     # 2. Load the dataset
     from utils.lane_dataset import LaneDataset
 
-    train_dataset = LaneDataset(dataset_dir=cmd_args.dataset, subset='train', img_size=cmd_args.img_size)
+    train_dataset = LaneDataset(dataset_dir=cmd_args.dataset, subset='test', img_size=cmd_args.img_size)
     train_loader = torch.utils.data.DataLoader(train_dataset,
                                                batch_size=cmd_args.batch_size,
                                                shuffle=True,
                                                num_workers=6)
 
-    valid_dataset = LaneDataset(dataset_dir=cmd_args.dataset, subset='valid', img_size=cmd_args.img_size)
+    valid_dataset = LaneDataset(dataset_dir=cmd_args.dataset, subset='test', img_size=cmd_args.img_size)
     valid_loader = torch.utils.data.DataLoader(valid_dataset,
                                                batch_size=cmd_args.batch_size,
                                                shuffle=False,
