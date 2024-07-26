@@ -72,7 +72,7 @@ if __name__ == "__main__":
     args.add_argument('-e', '--epochs', default=100, type=int, help='Number of epochs')
     args.add_argument('-b', '--batch-size', default=8, type=int, help='Batch size')
     args.add_argument('-i', '--img-size', default=480, type=int, help='Image size')
-    args.add_argument('-c', '--checkpoint', default='checkpoints', type=str, help='Checkpoint folder')
+    args.add_argument('-c', '--checkpoint', default='segmentattention/train/checkpoints', type=str, help='Checkpoint folder')
     args.add_argument('-t', '--metric', default='iou', type=str, help='Metric for optimization')
 
     cmd_args = args.parse_args()
