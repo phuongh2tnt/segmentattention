@@ -31,7 +31,8 @@ class LaneDataset(Dataset):
         self.resize_img = T.Resize((img_size, img_size), interpolation=T.InterpolationMode.BILINEAR)
         self.resize_gt = T.Resize((img_size, img_size), interpolation=T.InterpolationMode.NEAREST)
         self.subset = subset
-        self.data_path = dataset_dir + '/' + subset
+        #self.data_path = dataset_dir + '/' + subset
+        self.data_path="segmentattention/train/dataset/test"
         #text_file = "{}/{}/{}.txt".format(dataset_dir, subset, subset)
         text_file = "segmentattention/train/dataset/test/test.txt"
         # Read the text file
