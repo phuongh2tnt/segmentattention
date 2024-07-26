@@ -19,7 +19,7 @@ warnings.filterwarnings('ignore')
 
 
 class LaneDataset(Dataset):
-    def __init__(self, dataset_dir='./dataset/', subset='test', img_size=480):
+    def __init__(self, dataset_dir='segmentattention/train/dataset/', subset='test', img_size=480):
         """
         :param dataset_dir: directory containing the dataset
         :param subset: subset that we are working on ('train'/'test'/'valid')
