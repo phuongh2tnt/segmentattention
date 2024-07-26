@@ -6,7 +6,7 @@ from torch.optim import Adam
 import utils.metrics as metrics
 
 # Import your SwinUNet class
-from your_swinunet_module import SwinUNet  # Thay thế 'your_swinunet_module' bằng tên module của bạn
+from swinunet import SwinUNet  # Thay thế 'your_swinunet_module' bằng tên module của bạn
 
 # Setup CUDA
 def setup_cuda():
