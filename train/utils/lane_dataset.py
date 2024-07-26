@@ -33,7 +33,7 @@ class LaneDataset(Dataset):
         self.subset = subset
         self.data_path = dataset_dir + '/' + subset
         #text_file = "{}/{}/{}.txt".format(dataset_dir, subset, subset)
-        text_file = "segmentattention/train/dataset/.txt"
+        text_file = "segmentattention/train/dataset/test.txt"
         # Read the text file
         with open(text_file, 'r') as f:
             self.filenames = f.read().splitlines()
