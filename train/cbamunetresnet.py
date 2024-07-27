@@ -160,7 +160,7 @@ class UNetResNetCBAM(nn.Module):
         self.encoder = ResNet(block, layers, num_classes=1000)  # Change num_classes here if needed
         
         # Define U-Net decoder blocks
-        self.upconv4 = nn.ConvTranspose2d(512, 256, kernel_size=2, stride=2)
+        self.upconv4 = nn.ConvTranspose2d(512 * block.expansion, 256, kernel_size=2, stride=2)
         self.upconv3 = nn.ConvTranspose2d(256, 128, kernel_size=2, stride=2)
         self.upconv2 = nn.ConvTranspose2d(128, 64, kernel_size=2, stride=2)
         
