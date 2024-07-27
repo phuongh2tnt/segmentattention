@@ -41,7 +41,12 @@ class NeighborhoodAttentionBlock(nn.Module):
                 V_neighbors_i = V[:, neighbors_indices, :]  # Shape: (B, num_neighbors, C)
                 
                 # Compute attention scores
-                attention_scores_part = torch.bmm(Q_i, K_neighbors.transpose(1, 2)).squeeze(1)
+                attention_scores_part = torch.bmm(Q_i, K_neighbors.transpose(1, 2)).squeeze(1)  # Shape: (B, num_neighbors)
+                
+                # Debug prints
+                print(f"Q_i shape: {Q_i.shape}")
+                print(f"K_neighbors shape: {K_neighbors.shape}")
+                print(f"attention_scores_part shape: {attention_scores_part.shape}")
                 
                 # Ensure dimensions match
                 num_neighbors_actual = attention_scores_part.shape[1]
