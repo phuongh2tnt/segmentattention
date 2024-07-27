@@ -12,6 +12,7 @@ class PatchEmbedding(nn.Module):
         x = self.proj(x)
         B, C, H, W = x.shape
         x = x.permute(0, 2, 3, 1).contiguous()  # BHWC
+        x = x.view(B, -1, C)  # Reshape to (B, N, C) where N = H * W
         return x
 
 class FinalPatchExpansion(nn.Module):
@@ -113,6 +114,7 @@ class NeighborhoodAttentionBlock(nn.Module):
         
         return attended_values
 
+
 class Encoder(nn.Module):
     def __init__(self, C, partioned_ip_res, num_blocks=3, num_neighbors=8):
         super().__init__()
@@ -131,7 +133,6 @@ class Encoder(nn.Module):
 
     def forward(self, x):
         skip_conn_ftrs = []
-        # Example neighbors for simplicity; replace with actual neighbors computation
         neighbors = [torch.arange(x.size(1)).to(x.device) for _ in range(x.size(0))]
         for na_block, patch_merger in zip(self.enc_na_blocks, self.enc_patch_merge_blocks):
             x = na_block(x, neighbors)
@@ -174,7 +175,7 @@ class NatUNet(nn.Module):
         super().__init__()
         self.patch_embed = PatchEmbedding(ch, C, patch_size)
         self.encoder = Encoder(C, (H // patch_size, W // patch_size), num_blocks)
-        self.bottleneck = NeighborhoodAttentionBlock(C * (2 ** num_blocks), num_neighbors=8)  # Adjusted here
+        self.bottleneck = NeighborhoodAttentionBlock(C * (2 ** num_blocks), num_neighbors=8)
         self.decoder = Decoder(C, (H // patch_size, W // patch_size), num_blocks)
         self.final_expansion = FinalPatchExpansion(C, (H, W))  # Pass the original image size for final expansion
         self.head = nn.Conv2d(C // 2, num_class, 1)  # Adjusted C // 2 for final expansion output
@@ -187,4 +188,5 @@ class NatUNet(nn.Module):
         x = self.final_expansion(x)
         x = self.head(x.permute(0, 3, 1, 2))
         return nn.functional.interpolate(x, size=(480, 480), mode='bilinear', align_corners=False)  # Upsample to original size
+
 
