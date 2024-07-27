@@ -93,14 +93,14 @@ class NeighborhoodAttentionBlock(nn.Module):
             neighbors_indices = neighbors[i]  # Indices of neighbors for the i-th token
             
             Q_i = Q[:, i:i+1, :]  # Shape: (B, 1, C)
-            K_neighbors = K[:, neighbors_indices, :]  # Shape: (B, k, C)
-            V_neighbors_i = V[:, neighbors_indices, :]  # Shape: (B, k, C)
+            K_neighbors = K[:, neighbors_indices, :]  # Shape: (B, num_neighbors, C)
+            V_neighbors_i = V[:, neighbors_indices, :]  # Shape: (B, num_neighbors, C)
             
             # Compute attention scores
-            attention_scores[:, i, neighbors_indices] = torch.bmm(Q_i, K_neighbors.transpose(1, 2)).squeeze(1) + self.relative_bias
+            attention_scores[:, i, neighbors_indices] = torch.bmm(Q_i, K_neighbors.transpose(1, 2)).squeeze(1) + self.relative_bias[:len(neighbors_indices), :len(neighbors_indices)]
             
             # Store values
-            V_neighbors[:, i, :] = torch.cat([V_neighbors_i, torch.zeros(B, self.num_neighbors - V_neighbors_i.size(1), C).to(x.device)], dim=1)
+            V_neighbors[:, i, :len(neighbors_indices), :] = V_neighbors_i
         
         # Normalize attention scores
         attention_probs = F.softmax(attention_scores / (self.dim ** 0.5), dim=-1)
@@ -174,7 +174,7 @@ class NatUNet(nn.Module):
         super().__init__()
         self.patch_embed = PatchEmbedding(ch, C, patch_size)
         self.encoder = Encoder(C, (H // patch_size, W // patch_size), num_blocks)
-        self.bottleneck =NeighborhoodAttentionBlock(C * (2 ** num_blocks), (H // (patch_size * (2 ** num_blocks)), W // (patch_size * (2 ** num_blocks))))
+        self.bottleneck = NeighborhoodAttentionBlock(C * (2 ** num_blocks), num_neighbors=8)  # Adjusted here
         self.decoder = Decoder(C, (H // patch_size, W // patch_size), num_blocks)
         self.final_expansion = FinalPatchExpansion(C, (H, W))  # Pass the original image size for final expansion
         self.head = nn.Conv2d(C // 2, num_class, 1)  # Adjusted C // 2 for final expansion output
@@ -187,3 +187,4 @@ class NatUNet(nn.Module):
         x = self.final_expansion(x)
         x = self.head(x.permute(0, 3, 1, 2))
         return nn.functional.interpolate(x, size=(480, 480), mode='bilinear', align_corners=False)  # Upsample to original size
+
