@@ -11,9 +11,11 @@ class ChannelAttention(nn.Module):
         super(ChannelAttention, self).__init__()
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.max_pool = nn.AdaptiveMaxPool2d(1)
-        self.fc = nn.Sequential(nn.Conv2d(in_planes, in_planes // ratio, 1, bias=False),
-                               nn.ReLU(),
-                               nn.Conv2d(in_planes // ratio, in_planes, 1, bias=False))
+        self.fc = nn.Sequential(
+            nn.Conv2d(in_planes, in_planes // ratio, 1, bias=False),
+            nn.ReLU(),
+            nn.Conv2d(in_planes // ratio, in_planes, 1, bias=False)
+        )
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
@@ -133,7 +135,7 @@ class ResNet(nn.Module):
         layers = []
         layers.append(block(self.inplanes, planes, stride, downsample))
         self.inplanes = planes * block.expansion
-        for i in range(1, blocks):
+        for _ in range(1, blocks):
             layers.append(block(self.inplanes, planes))
         return nn.Sequential(*layers)
 
@@ -155,22 +157,28 @@ class ResNet(nn.Module):
 class UNetResNetCBAM(nn.Module):
     def __init__(self, block, layers, num_classes=1):
         super(UNetResNetCBAM, self).__init__()
-        self.encoder = ResNet(block, layers)
+        self.encoder = ResNet(block, layers, num_classes=1000)  # Change num_classes here if needed
         
         # Define U-Net decoder blocks
         self.upconv4 = nn.ConvTranspose2d(512, 256, kernel_size=2, stride=2)
         self.upconv3 = nn.ConvTranspose2d(256, 128, kernel_size=2, stride=2)
         self.upconv2 = nn.ConvTranspose2d(128, 64, kernel_size=2, stride=2)
         
-        self.conv4 = nn.Sequential(nn.Conv2d(512, 256, kernel_size=3, padding=1),
-                                  nn.ReLU(inplace=True),
-                                  nn.Conv2d(256, 256, kernel_size=3, padding=1))
-        self.conv3 = nn.Sequential(nn.Conv2d(256, 128, kernel_size=3, padding=1),
-                                  nn.ReLU(inplace=True),
-                                  nn.Conv2d(128, 128, kernel_size=3, padding=1))
-        self.conv2 = nn.Sequential(nn.Conv2d(128, 64, kernel_size=3, padding=1),
-                                  nn.ReLU(inplace=True),
-                                  nn.Conv2d(64, 64, kernel_size=3, padding=1))
+        self.conv4 = nn.Sequential(
+            nn.Conv2d(512, 256, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(256, 256, kernel_size=3, padding=1)
+        )
+        self.conv3 = nn.Sequential(
+            nn.Conv2d(256, 128, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(128, 128, kernel_size=3, padding=1)
+        )
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(128, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(64, 64, kernel_size=3, padding=1)
+        )
         
         self.final_conv = nn.Conv2d(64, num_classes, kernel_size=1)
 
