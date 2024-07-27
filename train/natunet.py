@@ -2,63 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class PatchEmbedding(nn.Module):
-    def __init__(self, in_channels, embed_dim, patch_size):
-        super().__init__()
-        self.patch_size = patch_size
-        self.proj = nn.Conv2d(in_channels, embed_dim, kernel_size=patch_size, stride=patch_size)
-
-    def forward(self, x):
-        x = self.proj(x)
-        B, C, H, W = x.shape
-        x = x.permute(0, 2, 3, 1).contiguous()  # BHWC
-        x = x.view(B, -1, C)  # Reshape to (B, N, C) where N = H * W
-        return x
-
-class FinalPatchExpansion(nn.Module):
-    def __init__(self, dim, out_size):
-        super().__init__()
-        self.expand = nn.ConvTranspose2d(dim, dim // 2, kernel_size=2, stride=2)
-        self.norm = nn.LayerNorm(dim // 2)
-        self.out_size = out_size
-
-    def forward(self, x):
-        B, H, W, C = x.shape
-        x = x.permute(0, 3, 1, 2).contiguous()  # BCHW
-        x = self.expand(x)
-        x = x.permute(0, 2, 3, 1).contiguous()  # BHWC
-        x = self.norm(x)
-        return x
-
-class PatchMerging(nn.Module):
-    def __init__(self, dim):
-        super().__init__()
-        self.norm = nn.LayerNorm(4 * dim)
-        self.reduction = nn.Linear(4 * dim, 2 * dim, bias=False)
-
-    def forward(self, x):
-        B, H, W, C = x.shape
-        x = x.view(B, H // 2, 2, W // 2, 2, C)
-        x = x.permute(0, 1, 3, 2, 4, 5).contiguous()
-        x = x.view(B, H // 2, W // 2, 4 * C)
-        x = self.norm(x)
-        x = self.reduction(x)
-        return x
-
-class PatchExpansion(nn.Module):
-    def __init__(self, dim):
-        super().__init__()
-        self.norm = nn.LayerNorm(dim // 2)
-        self.expand = nn.Linear(dim, 2 * dim, bias=False)
-
-    def forward(self, x):
-        B, H, W, C = x.shape
-        x = self.expand(x)
-        x = x.view(B, H, W, 2, 2, C // 2)
-        x = x.permute(0, 1, 3, 2, 4, 5).contiguous()
-        x = x.view(B, H * 2, W * 2, C // 2)
-        x = self.norm(x)
-        return x
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 class NeighborhoodAttentionBlock(nn.Module):
     def __init__(self, dim, num_neighbors):
@@ -86,34 +32,46 @@ class NeighborhoodAttentionBlock(nn.Module):
         V = self.value(x)  # Shape: (B, N, C)
         
         # Prepare to compute attention scores within neighborhoods
-        attention_scores = torch.zeros(B, N, N).to(x.device)
+        attention_scores = torch.zeros(B, N, self.num_neighbors).to(x.device)
         V_neighbors = torch.zeros(B, N, self.num_neighbors, C).to(x.device)
         
         # Compute local attention scores and values
         for i in range(N):
             neighbors_indices = neighbors[i]  # Indices of neighbors for the i-th token
-            
-            Q_i = Q[:, i:i+1, :]  # Shape: (B, 1, C)
-            K_neighbors = K[:, neighbors_indices, :]  # Shape: (B, num_neighbors, C)
-            V_neighbors_i = V[:, neighbors_indices, :]  # Shape: (B, num_neighbors, C)
-            
-            # Compute attention scores
-            attention_scores[:, i, neighbors_indices] = torch.bmm(Q_i, K_neighbors.transpose(1, 2)).squeeze(1) + self.relative_bias[:len(neighbors_indices), :len(neighbors_indices)]
-            
-            # Store values
-            V_neighbors[:, i, :len(neighbors_indices), :] = V_neighbors_i
+            if len(neighbors_indices) > 0:
+                Q_i = Q[:, i:i+1, :]  # Shape: (B, 1, C)
+                K_neighbors = K[:, neighbors_indices, :]  # Shape: (B, num_neighbors, C)
+                V_neighbors_i = V[:, neighbors_indices, :]  # Shape: (B, num_neighbors, C)
+                
+                # Compute attention scores
+                attention_scores[:, i, :len(neighbors_indices)] = torch.bmm(Q_i, K_neighbors.transpose(1, 2)).squeeze(1) + self.relative_bias[:len(neighbors_indices), :len(neighbors_indices)]
+                
+                # Store values
+                V_neighbors[:, i, :len(neighbors_indices), :] = V_neighbors_i
         
         # Normalize attention scores
         attention_probs = F.softmax(attention_scores / (self.dim ** 0.5), dim=-1)
         
         # Weighted sum of values
-        attended_values = torch.bmm(attention_probs, V_neighbors.view(B, N, self.num_neighbors * C))  # Shape: (B, N, C)
+        attended_values = torch.bmm(attention_probs, V_neighbors.view(B, N, self.num_neighbors * C).view(B, N, self.num_neighbors, C))  # Shape: (B, N, C)
         
         # Apply output projection
         attended_values = self.fc_out(attended_values)
         
         return attended_values
 
+class PatchEmbedding(nn.Module):
+    def __init__(self, in_channels, embed_dim, patch_size):
+        super().__init__()
+        self.patch_size = patch_size
+        self.proj = nn.Conv2d(in_channels, embed_dim, kernel_size=patch_size, stride=patch_size)
+
+    def forward(self, x):
+        x = self.proj(x)
+        B, C, H, W = x.shape
+        x = x.permute(0, 2, 3, 1).contiguous()  # BHWC
+        x = x.view(B, -1, C)  # Reshape to (B, N, C) where N = H * W
+        return x
 
 class Encoder(nn.Module):
     def __init__(self, C, partioned_ip_res, num_blocks=3, num_neighbors=8):
@@ -139,6 +97,40 @@ class Encoder(nn.Module):
             skip_conn_ftrs.append(x)
             x = patch_merger(x)
         return x, skip_conn_ftrs
+
+class PatchMerging(nn.Module):
+    def __init__(self, in_channels):
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = 2 * in_channels
+        self.reduction = nn.Linear(4 * in_channels, self.out_channels, bias=False)
+
+    def forward(self, x):
+        B, N, C = x.shape
+        H = W = int(N**0.5)
+        x = x.view(B, H, W, C)
+        x0 = x[:, 0::2, 0::2, :]
+        x1 = x[:, 1::2, 0::2, :]
+        x2 = x[:, 0::2, 1::2, :]
+        x3 = x[:, 1::2, 1::2, :]
+        x = torch.cat([x0, x1, x2, x3], -1)
+        x = x.view(B, -1, 4 * C)
+        x = self.reduction(x)
+        return x
+
+class PatchExpansion(nn.Module):
+    def __init__(self, in_channels):
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = in_channels // 2
+        self.expand = nn.Linear(in_channels, 2 * self.out_channels, bias=False)
+
+    def forward(self, x):
+        B, N, C = x.shape
+        H = W = int((N * 2)**0.5)
+        x = self.expand(x)
+        x = x.view(B, H, W, C // 2).permute(0, 2, 1, 3).contiguous()
+        return x.view(B, -1, C // 2)
 
 class Decoder(nn.Module):
     def __init__(self, C, partioned_ip_res, num_blocks=3, num_neighbors=8):
@@ -170,6 +162,21 @@ class Decoder(nn.Module):
             x = na_block(x, neighbors)
         return x
 
+class FinalPatchExpansion(nn.Module):
+    def __init__(self, in_channels, output_res):
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = in_channels // 2
+        self.expand = nn.Linear(in_channels, self.out_channels, bias=False)
+        self.output_res = output_res
+
+    def forward(self, x):
+        B, N, C = x.shape
+        H, W = self.output_res
+        x = self.expand(x)
+        x = x.view(B, H, W, C // 2).permute(0, 3, 1, 2).contiguous()
+        return x
+
 class NatUNet(nn.Module):
     def __init__(self, H, W, ch, C, num_class, num_blocks=3, patch_size=4):
         super().__init__()
@@ -186,7 +193,7 @@ class NatUNet(nn.Module):
         x = self.bottleneck(x)
         x = self.decoder(x, skip_ftrs[::-1])
         x = self.final_expansion(x)
-        x = self.head(x.permute(0, 3, 1, 2))
+        x = self.head(x)
         return nn.functional.interpolate(x, size=(480, 480), mode='bilinear', align_corners=False)  # Upsample to original size
 
 
