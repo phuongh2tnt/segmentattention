@@ -98,7 +98,7 @@ if __name__ == "__main__":
     block=BasicBlock,  # or Bottleneck if you prefer
     layers=[2, 2, 2, 2],  # Number of blocks in each ResNet layer
     num_classes=2,  # Number of output classes
-    in_channels=3  # Number of input channels (e.g., RGB images)
+    #in_channels=3  # Number of input channels (e.g., RGB images)
 ).to(device)
 
     # 4. Specify loss function and optimizer
