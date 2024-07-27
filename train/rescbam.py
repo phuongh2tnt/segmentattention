@@ -1,17 +1,13 @@
 import torch
 import torch.nn as nn
-import math
 import torch.utils.model_zoo as model_zoo
+from collections import OrderedDict
+import math
 
-__all__ = ['ResNet', 'resnet18_cbam', 'resnet34_cbam', 'resnet50_cbam', 'resnet101_cbam',
-           'resnet152_cbam']
+__all__ = ['ResNet', 'resnet50_cbam']
 
 model_urls = {
-    'resnet18': 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
-    'resnet34': 'https://download.pytorch.org/models/resnet34-333f7ec4.pth',
     'resnet50': 'https://download.pytorch.org/models/resnet50-19c8e357.pth',
-    'resnet101': 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth',
-    'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
 }
 
 def conv3x3(in_planes, out_planes, stride=1):
@@ -23,10 +19,11 @@ class ChannelAttention(nn.Module):
         super(ChannelAttention, self).__init__()
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.max_pool = nn.AdaptiveMaxPool2d(1)
-
-        self.fc = nn.Sequential(nn.Conv2d(in_planes, in_planes // 16, 1, bias=False),
-                                nn.ReLU(),
-                                nn.Conv2d(in_planes // 16, in_planes, 1, bias=False))
+        self.fc = nn.Sequential(
+            nn.Conv2d(in_planes, in_planes // ratio, 1, bias=False),
+            nn.ReLU(),
+            nn.Conv2d(in_planes // ratio, in_planes, 1, bias=False)
+        )
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
@@ -58,32 +55,24 @@ class BasicBlock(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.conv2 = conv3x3(planes, planes)
         self.bn2 = nn.BatchNorm2d(planes)
-
         self.ca = ChannelAttention(planes)
         self.sa = SpatialAttention()
-
         self.downsample = downsample
         self.stride = stride
 
     def forward(self, x):
         residual = x
-
         out = self.conv1(x)
         out = self.bn1(out)
         out = self.relu(out)
-
         out = self.conv2(out)
         out = self.bn2(out)
-
         out = self.ca(out) * out
         out = self.sa(out) * out
-
         if self.downsample is not None:
             residual = self.downsample(x)
-
         out += residual
         out = self.relu(out)
-
         return out
 
 class Bottleneck(nn.Module):
@@ -93,42 +82,32 @@ class Bottleneck(nn.Module):
         super(Bottleneck, self).__init__()
         self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride,
-                               padding=1, bias=False)
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
         self.conv3 = nn.Conv2d(planes, planes * 4, kernel_size=1, bias=False)
         self.bn3 = nn.BatchNorm2d(planes * 4)
         self.relu = nn.ReLU(inplace=True)
-
         self.ca = ChannelAttention(planes * 4)
         self.sa = SpatialAttention()
-
         self.downsample = downsample
         self.stride = stride
 
     def forward(self, x):
         residual = x
-
         out = self.conv1(x)
         out = self.bn1(out)
         out = self.relu(out)
-
         out = self.conv2(out)
         out = self.bn2(out)
         out = self.relu(out)
-
         out = self.conv3(out)
         out = self.bn3(out)
-
         out = self.ca(out) * out
         out = self.sa(out) * out
-
         if self.downsample is not None:
             residual = self.downsample(x)
-
         out += residual
         out = self.relu(out)
-
         return out
 
 class ResNet(nn.Module):
@@ -175,16 +154,24 @@ class ResNet(nn.Module):
         x = self.bn1(x)
         x = self.relu(x)
         x = self.maxpool(x)
-
         x1 = self.layer1(x)
         x2 = self.layer2(x1)
         x3 = self.layer3(x2)
         x4 = self.layer4(x3)
-
         return x1, x2, x3, x4
+
+def load_resnet50_weights(model, pretrained=True):
+    if pretrained:
+        state_dict = model_zoo.load_url(model_urls['resnet50'])
+        new_state_dict = OrderedDict()
+        for k, v in state_dict.items():
+            if not ('ca' in k or 'sa' in k):
+                new_state_dict[k] = v
+        model.load_state_dict(new_state_dict, strict=False)
+    return model
 
 def resnet50_cbam(pretrained=False, **kwargs):
     model = ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
     if pretrained:
-        model.load_state_dict(model_zoo.load_url(model_urls['resnet50']))
+        model = load_resnet50_weights(model, pretrained=True)
     return model
