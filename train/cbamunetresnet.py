@@ -135,7 +135,7 @@ class ResNet(nn.Module):
         layers = []
         layers.append(block(self.inplanes, planes, stride, downsample))
         self.inplanes = planes * block.expansion
-        for _ in range(1, blocks):
+        for i in range(1, blocks):
             layers.append(block(self.inplanes, planes))
         return nn.Sequential(*layers)
 
@@ -144,23 +144,23 @@ class ResNet(nn.Module):
         x = self.bn1(x)
         x = self.relu(x)
         x = self.maxpool(x)
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
-        x = self.avgpool(x)
+        x1 = self.layer1(x)
+        x2 = self.layer2(x1)
+        x3 = self.layer3(x2)
+        x4 = self.layer4(x3)
+        x = self.avgpool(x4)
         x = x.view(x.size(0), -1)
         x = self.fc(x)
-        return x
+        return x, x1, x2, x3, x4
 
 # Define U-Net with ResNet as Encoder
 class UNetResNetCBAM(nn.Module):
     def __init__(self, block, layers, num_classes=1):
         super(UNetResNetCBAM, self).__init__()
-        self.encoder = ResNet(block, layers, num_classes=1000)  # Change num_classes here if needed
+        self.encoder = ResNet(block, layers)
         
         # Define U-Net decoder blocks
-        self.upconv4 = nn.ConvTranspose2d(512 * block.expansion, 256, kernel_size=2, stride=2)
+        self.upconv4 = nn.ConvTranspose2d(512, 256, kernel_size=2, stride=2)
         self.upconv3 = nn.ConvTranspose2d(256, 128, kernel_size=2, stride=2)
         self.upconv2 = nn.ConvTranspose2d(128, 64, kernel_size=2, stride=2)
         
@@ -184,10 +184,7 @@ class UNetResNetCBAM(nn.Module):
 
     def forward(self, x):
         # Encoder
-        x1 = self.encoder.layer1(x)
-        x2 = self.encoder.layer2(x1)
-        x3 = self.encoder.layer3(x2)
-        x4 = self.encoder.layer4(x3)
+        x, x1, x2, x3, x4 = self.encoder(x)
         
         # Decoder
         x = self.upconv4(x4)
@@ -206,4 +203,4 @@ class UNetResNetCBAM(nn.Module):
         return x
 
 # Initialize the model
-#model = UNetResNetCBAM(BasicBlock, [2, 2, 2, 2], num_classes=1)
+# model = UNetResNetCBAM(BasicBlock, [2, 2, 2, 2], num_classes=1)
