@@ -45,6 +45,7 @@ class CBAM(nn.Module):
         out = self.channel_attention(x) * x
         out = self.spatial_attention(out) * out
         return out
+
 class CBAMBlock(nn.Module):
     def __init__(self, dim):
         super().__init__()
@@ -52,6 +53,63 @@ class CBAMBlock(nn.Module):
 
     def forward(self, x):
         return self.cbam(x)
+
+class PatchEmbedding(nn.Module):
+    def __init__(self, in_channels, embed_dim, patch_size):
+        super().__init__()
+        self.patch_size = patch_size
+        self.proj = nn.Conv2d(in_channels, embed_dim, kernel_size=patch_size, stride=patch_size)
+
+    def forward(self, x):
+        x = self.proj(x)
+        B, C, H, W = x.shape
+        x = x.permute(0, 2, 3, 1).contiguous()
+        return x
+
+class PatchMerging(nn.Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.norm = nn.LayerNorm(4 * dim)
+        self.reduction = nn.Linear(4 * dim, 2 * dim, bias=False)
+
+    def forward(self, x):
+        B, H, W, C = x.shape
+        x = x.view(B, H // 2, 2, W // 2, 2, C)
+        x = x.permute(0, 1, 3, 2, 4, 5).contiguous()
+        x = x.view(B, H // 2, W // 2, 4 * C)
+        x = self.norm(x)
+        x = self.reduction(x)
+        return x
+
+class PatchExpansion(nn.Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.norm = nn.LayerNorm(dim // 2)
+        self.expand = nn.Linear(dim, 2 * dim, bias=False)
+
+    def forward(self, x):
+        B, H, W, C = x.shape
+        x = self.expand(x)
+        x = x.view(B, H, W, 2, 2, C // 2)
+        x = x.permute(0, 1, 3, 2, 4, 5).contiguous()
+        x = x.view(B, H * 2, W * 2, C // 2)
+        x = self.norm(x)
+        return x
+
+class FinalPatchExpansion(nn.Module):
+    def __init__(self, dim, out_size):
+        super().__init__()
+        self.expand = nn.ConvTranspose2d(dim, dim // 2, kernel_size=2, stride=2)
+        self.norm = nn.LayerNorm(dim // 2)
+        self.out_size = out_size
+
+    def forward(self, x):
+        B, H, W, C = x.shape
+        x = x.permute(0, 3, 1, 2).contiguous()  # Change to BCHW format
+        x = self.expand(x)
+        x = x.permute(0, 2, 3, 1).contiguous()  # Change back to BHWC format
+        x = self.norm(x)
+        return x
 
 class Encoder(nn.Module):
     def __init__(self, C, partioned_ip_res, num_blocks=3):
