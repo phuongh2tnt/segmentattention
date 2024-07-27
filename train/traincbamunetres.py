@@ -6,7 +6,7 @@ from torch.optim import Adam
 import utils.metrics as metrics
 
 # Import your UNetResNetCBAM class
-from cbamunetresnet import UNetResNetCBAM  # Replace 'your_model_module' with the actual module name
+from cbamunetresnet import UNetResNetCBAM, BasicBlock, Bottleneck  # Replace 'your_model_module' with the actual module name
 
 # Setup CUDA
 def setup_cuda():
