@@ -6,7 +6,7 @@ from torch.optim import Adam
 import utils.metrics as metrics
 
 # Import your CBAM-ResNet UNet class
-from unetrescbam import resnet50_cbam_unet  # Ensure this module path is correct
+from fullrescbamunet import resnet50_cbam_unet  # Ensure this module path is correct
 
 # Setup CUDA
 def setup_cuda():
