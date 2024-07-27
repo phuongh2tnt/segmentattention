@@ -25,18 +25,23 @@ class UNet(nn.Module):
     def __init__(self, encoder, n_classes):
         super(UNet, self).__init__()
         self.encoder = encoder
-        self.up1 = UpConv(2048, 1024)
-        self.up2 = UpConv(1024, 512)
-        self.up3 = UpConv(512, 256)
-        self.up4 = UpConv(256, 64)
+
+        # Adjust the channel numbers according to the ResNet output channels
+        self.up1 = UpConv(2048, 1024)  # Output of encoder layer4
+        self.up2 = UpConv(1024, 512)   # Output of encoder layer3
+        self.up3 = UpConv(512, 256)    # Output of encoder layer2
+        self.up4 = UpConv(256, 64)     # Output of encoder layer1
+
         self.out_conv = nn.Conv2d(128, n_classes, kernel_size=1)
 
     def forward(self, x):
         x1, x2, x3, x4 = self.encoder(x)
-        x = self.up1(x4, x3)
-        x = self.up2(x, x2)
-        x = self.up3(x, x1)
-        x = self.up4(x, x)
+
+        x = self.up1(x4, x3)  # layer4 to layer3
+        x = self.up2(x, x2)   # layer3 to layer2
+        x = self.up3(x, x1)   # layer2 to layer1
+        x = self.up4(x, x)    # layer1 to output
+
         x = self.out_conv(x)
         return x
 
