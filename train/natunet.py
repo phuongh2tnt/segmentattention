@@ -20,46 +20,42 @@ class NeighborhoodAttentionBlock(nn.Module):
         
         # Output linear projection
         self.fc_out = nn.Linear(dim, dim)
-
-    def forward(self, x, neighbors):
-        B, N, C = x.shape  # B: batch size, N: number of tokens, C: dimension of tokens
-        
-        # Linear projections
-        Q = self.query(x)  # Shape: (B, N, C)
-        K = self.key(x)    # Shape: (B, N, C)
-        V = self.value(x)  # Shape: (B, N, C)
-        
-        # Prepare to compute attention scores within neighborhoods
-        attention_scores = torch.zeros(B, N, self.num_neighbors).to(x.device)
-        V_neighbors = torch.zeros(B, N, self.num_neighbors, C).to(x.device)
-        
-        # Compute local attention scores and values
-        for i in range(N):
-            neighbors_indices = neighbors[i]  # Indices of neighbors for the i-th token
-            if len(neighbors_indices) > 0:
-                Q_i = Q[:, i:i+1, :]  # Shape: (B, 1, C)
-                K_neighbors = K[:, neighbors_indices, :]  # Shape: (B, num_neighbors, C)
-                V_neighbors_i = V[:, neighbors_indices, :]  # Shape: (B, num_neighbors, C)
-                
-                # Compute attention scores
-                attention_scores[:, i, :len(neighbors_indices)] = torch.bmm(Q_i, K_neighbors.transpose(1, 2)).squeeze(1)
-                
-                # Store values
-                V_neighbors[:, i, :len(neighbors_indices), :] = V_neighbors_i
-        
-        # Add the relative bias
-        attention_scores = attention_scores + self.relative_bias[:attention_scores.size(2), :attention_scores.size(2)]
-        
-        # Normalize attention scores
-        attention_probs = F.softmax(attention_scores / (self.dim ** 0.5), dim=-1)
-        
-        # Weighted sum of values
-        attended_values = torch.bmm(attention_probs, V_neighbors.view(B, N, -1)).view(B, N, C)
-        
-        # Apply output projection
-        attended_values = self.fc_out(attended_values)
-        
-        return attended_values
+   def forward(self, x, neighbors):
+    B, N, C = x.shape
+    Q = self.query(x)
+    K = self.key(x)
+    V = self.value(x)
+    
+    attention_scores = torch.zeros(B, N, self.num_neighbors).to(x.device)
+    V_neighbors = torch.zeros(B, N, self.num_neighbors, C).to(x.device)
+    
+    for i in range(N):
+        neighbors_indices = neighbors[i]
+        if len(neighbors_indices) > 0:
+            Q_i = Q[:, i:i+1, :]
+            K_neighbors = K[:, neighbors_indices, :]
+            V_neighbors_i = V[:, neighbors_indices, :]
+            
+            print("Q_i shape:", Q_i.shape)
+            print("K_neighbors shape:", K_neighbors.shape)
+            print("V_neighbors_i shape:", V_neighbors_i.shape)
+            
+            attention_scores[:, i, :len(neighbors_indices)] = torch.bmm(Q_i, K_neighbors.transpose(1, 2)).squeeze(1)
+            V_neighbors[:, i, :len(neighbors_indices), :] = V_neighbors_i
+    
+    print("Attention Scores shape:", attention_scores.shape)
+    print("Relative Bias shape:", self.relative_bias.shape)
+    
+    attention_scores = attention_scores + self.relative_bias[:attention_scores.size(2), :attention_scores.size(2)]
+    
+    attention_probs = F.softmax(attention_scores / (self.dim ** 0.5), dim=-1)
+    attended_values = torch.bmm(attention_probs, V_neighbors.view(B, N, -1)).view(B, N, C)
+    
+    print("Attended Values shape:", attended_values.shape)
+    
+    attended_values = self.fc_out(attended_values)
+    
+    return attended_values
 
 class PatchEmbedding(nn.Module):
     def __init__(self, in_channels, embed_dim, patch_size):
