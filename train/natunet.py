@@ -2,9 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+
 
 class NeighborhoodAttentionBlock(nn.Module):
     def __init__(self, dim, num_neighbors):
@@ -44,16 +42,19 @@ class NeighborhoodAttentionBlock(nn.Module):
                 V_neighbors_i = V[:, neighbors_indices, :]  # Shape: (B, num_neighbors, C)
                 
                 # Compute attention scores
-                attention_scores[:, i, :len(neighbors_indices)] = torch.bmm(Q_i, K_neighbors.transpose(1, 2)).squeeze(1) + self.relative_bias[:len(neighbors_indices), :len(neighbors_indices)]
+                attention_scores[:, i, :len(neighbors_indices)] = torch.bmm(Q_i, K_neighbors.transpose(1, 2)).squeeze(1)
                 
                 # Store values
                 V_neighbors[:, i, :len(neighbors_indices), :] = V_neighbors_i
+        
+        # Add the relative bias
+        attention_scores = attention_scores + self.relative_bias[:attention_scores.size(2), :attention_scores.size(2)]
         
         # Normalize attention scores
         attention_probs = F.softmax(attention_scores / (self.dim ** 0.5), dim=-1)
         
         # Weighted sum of values
-        attended_values = torch.bmm(attention_probs, V_neighbors.view(B, N, self.num_neighbors * C).view(B, N, self.num_neighbors, C))  # Shape: (B, N, C)
+        attended_values = torch.bmm(attention_probs, V_neighbors.view(B, N, -1)).view(B, N, C)
         
         # Apply output projection
         attended_values = self.fc_out(attended_values)
