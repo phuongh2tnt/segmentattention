@@ -70,7 +70,7 @@ class NeighborhoodAttentionBlock(nn.Module):
         self.key = nn.Linear(dim, dim)
         self.value = nn.Linear(dim, dim)
         
-        # Relative positional biases (dummy initialization, can be learned or fixed)
+        # Relative positional biases
         self.relative_bias = nn.Parameter(torch.zeros(num_neighbors, num_neighbors))
         
         # Output linear projection
