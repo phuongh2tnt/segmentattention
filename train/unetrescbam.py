@@ -26,13 +26,13 @@ class UNet(nn.Module):
         super(UNet, self).__init__()
         self.encoder = encoder
 
-        # Adjust the channel numbers according to the ResNet output channels
-        self.up1 = UpConv(2048, 1024)  # Output of encoder layer4
-        self.up2 = UpConv(1024, 512)   # Output of encoder layer3
-        self.up3 = UpConv(512, 256)    # Output of encoder layer2
-        self.up4 = UpConv(256, 64)     # Output of encoder layer1
+        # Adjust the UpConv layers to match the encoder output channels
+        self.up1 = UpConv(2048, 1024)  # from layer4
+        self.up2 = UpConv(1024 + 1024, 512)   # from layer3 + up1
+        self.up3 = UpConv(512 + 512, 256)    # from layer2 + up2
+        self.up4 = UpConv(256 + 256, 64)     # from layer1 + up3
 
-        self.out_conv = nn.Conv2d(128, n_classes, kernel_size=1)
+        self.out_conv = nn.Conv2d(64 + 64, n_classes, kernel_size=1)  # 64 + 64 because of concatenation
 
     def forward(self, x):
         x1, x2, x3, x4 = self.encoder(x)
