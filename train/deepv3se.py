@@ -51,9 +51,3 @@ class DeepLabV3SE(nn.Module):
         x = self.deeplabv3.classifier(x)
         x = nn.functional.interpolate(x, size=(x.shape[2], x.shape[3]), mode='bilinear', align_corners=False)
         return x
-
-# Example usage
-#model = DeepLabV3SE(num_classes=21)
-#input_tensor = torch.randn(1, 3, 224, 224)
-#output = model(input_tensor)
-#print(output.shape)  # Should print torch.Size([1, 21, 224, 224])
