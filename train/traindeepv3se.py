@@ -34,7 +34,8 @@ def train_model():
     for i, (img, gt) in enumerate(tqdm(train_loader, ncols=80, desc='Training')):
         optimizer.zero_grad()
         img, gt = img.to(device, dtype=torch.float), gt.to(device, dtype=torch.long)
-        logits = model(img)  # Adjusted here
+        logits = model(img)
+        logits = nn.functional.interpolate(logits, size=gt.shape[1:], mode='bilinear', align_corners=False)
         loss = loss_fn(logits, gt)
         loss.backward()
         optimizer.step()
@@ -57,7 +58,8 @@ def validate_model():
     with torch.no_grad():
         for i, (img, gt) in enumerate(tqdm(valid_loader, ncols=80, desc='Validation')):
             img, gt = img.to(device, dtype=torch.float), gt.to(device, dtype=torch.long)
-            logits = model(img)  # Adjusted here
+            logits = model(img)
+            logits = nn.functional.interpolate(logits, size=gt.shape[1:], mode='bilinear', align_corners=False)
             loss = loss_fn(logits, gt)
             valid_loss += loss.item()
             seg_maps = logits.cpu().detach().numpy().argmax(axis=1)
