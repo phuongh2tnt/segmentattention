@@ -107,7 +107,7 @@ if __name__ == "__main__":
     device = setup_cuda()
 
     # 2. Load the dataset
-    from utils.lane_dataset import LaneDataset
+    from utils.lanedatasetv2 import LaneDataset
 
     train_dataset = LaneDataset(dataset_dir=cmd_args.dataset, subset='test', img_size=cmd_args.img_size)
     train_loader = torch.utils.data.DataLoader(train_dataset,
