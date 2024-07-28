@@ -65,6 +65,7 @@ def validate_model():
             performance += getattr(metrics, cmd_args.metric)(seg_maps, gt)
 
     return valid_loss / len(valid_loader), performance / len(valid_loader)
+
 if __name__ == "__main__":
     # 1. Parse the command arguments
     args = argparse.ArgumentParser(description='Train a deep model for lane segmentation')
