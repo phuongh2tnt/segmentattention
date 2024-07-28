@@ -1,73 +1,3 @@
-import torch
-from tqdm import tqdm
-import numpy as np
-import argparse
-from torch.optim import Adam
-import utils.metrics as metrics  # Ensure your metrics module is correctly located
-from torch.cuda.amp import GradScaler, autocast
-
-# Import your SE-UNet class
-from seunet import UNet  # Adjust the import to your module's name
-
-# Setup CUDA
-def setup_cuda():
-    seed = 50
-    torch.backends.cudnn.enabled = True
-    torch.backends.cudnn.benchmark = True
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed(seed)
-    return torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-
-def train_model(model, train_loader, optimizer, loss_fn, device, accumulation_steps=2):
-    model.train()
-    train_loss = 0.0
-    performance = 0
-    scaler = GradScaler()
-
-    optimizer.zero_grad()
-    for i, (img, gt) in enumerate(tqdm(train_loader, ncols=80, desc='Training')):
-        img, gt = img.to(device, dtype=torch.float), gt.to(device, dtype=torch.long)
-        
-        with autocast():
-            logits = model(img)
-            loss = loss_fn(logits, gt) / accumulation_steps
-        
-        scaler.scale(loss).backward()
-
-        if (i + 1) % accumulation_steps == 0:
-            scaler.step(optimizer)
-            scaler.update()
-            optimizer.zero_grad()
-        
-        train_loss += loss.item() * accumulation_steps
-        seg_maps = logits.cpu().detach().numpy().argmax(axis=1)
-        gt = gt.cpu().detach().numpy()
-        performance += getattr(metrics, cmd_args.metric)(seg_maps, gt)
-
-    return train_loss / len(train_loader), performance / len(train_loader)
-
-def validate_model(model, valid_loader, loss_fn, device):
-    model.eval()
-    valid_loss = 0.0
-    performance = 0
-
-    with torch.no_grad():
-        for i, (img, gt) in enumerate(valid_loader):
-            img, gt = img.to(device, dtype=torch.float), gt.to(device, dtype=torch.long)
-            
-            with autocast():
-                logits = model(img)
-                loss = loss_fn(logits, gt)
-            
-            valid_loss += loss.item()
-            seg_maps = logits.cpu().detach().numpy().argmax(axis=1)
-            gt = gt.cpu().detach().numpy()
-            performance += getattr(metrics, cmd_args.metric)(seg_maps, gt)
-
-    return valid_loss / len(valid_loader), performance / len(valid_loader)
-
 import os
 import argparse
 import torch
@@ -79,12 +9,13 @@ from optim import CrossEntropyLoss2d, adjust_learning_rate
 from utils.lane_dataset import LaneDataset  # Ensure your dataset module is correctly located
 from visualization import Dashboard, gray2rgb, gray2rgb_norm
 from metric import dice_tensor
-
+pathcheckpoints='/content/drive/My Drive/segattention/unet/unetse/checkpoints'
+pathchweight='/content/drive/My Drive/segattention/unet/unetse/weight'
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, default='data', help='Path to the dataset')
-parser.add_argument('--save_dir', type=str, default='weight', help='Models are saved here')
+parser.add_argument('--save_dir', type=str, default=pathchweight, help='Models are saved here')
 parser.add_argument('--weight_dir', type=str, default=None, help='Path to pretrained weight')
-parser.add_argument('--model', type=str, default='unet', help='Select model, e.g., unet, se_unet, densenet, se_densenet')
+parser.add_argument('--model', type=str, default='se_unet', help='Select model, e.g., unet, se_unet, densenet, se_densenet')
 parser.add_argument('--reduction_ratio', type=int, default=None, help='Number of reduction ratio in SE block')
 parser.add_argument('--growth_rate', type=int, default=16, help='Number of growth_rate in Denseblock')
 parser.add_argument('--batch_size', type=int, default=16)
@@ -102,7 +33,7 @@ parser.add_argument('--up_blocks', type=str, default=None, help='Number of up bl
 parser.add_argument('--port', type=int, default=8097, help='Visdom port of the web display')
 parser.add_argument('--visdom_env_name', type=str, default='SE_segmentation', help='Name of current environment in visdom')
 parser.add_argument('--img_size', type=int, default=256, help='Image size for dataset')
-parser.add_argument('--checkpoint', type=str, default='checkpoints', help='Directory to save model checkpoints')
+parser.add_argument('--checkpoint', type=str, default=pathcheckpoints, help='Directory to save model checkpoints')
 parser.add_argument('--metric', type=str, default='Dice', help='Metric to track for best performance')
 args = parser.parse_args()
 
@@ -176,8 +107,8 @@ for epoch in range(1, args.num_epochs + 1):
     epoch_train_perf = []
 
     for step, (images, targets) in enumerate(train_loader):
-        images = images.cuda(gpu_ids[0], async=True)
-        targets = targets.long().cuda(gpu_ids[0], async=True)
+        images = images.cuda(gpu_ids[0], non_blocking=True)
+        targets = targets.long().cuda(gpu_ids[0], non_blocking=True)
 
         inputs = Variable(images, requires_grad=True)
         targets = Variable(targets)
@@ -208,8 +139,8 @@ for epoch in range(1, args.num_epochs + 1):
     epoch_val_perf = []
 
     for step, (images, targets) in enumerate(valid_loader):
-        images = images.cuda(gpu_ids[0], async=True)
-        targets = targets.long().cuda(gpu_ids[0], async=True)
+        images = images.cuda(gpu_ids[0], non_blocking=True)
+        targets = targets.long().cuda(gpu_ids[0], non_blocking=True)
 
         with torch.no_grad():
             inputs = Variable(images)
