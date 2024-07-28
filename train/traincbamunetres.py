@@ -7,7 +7,64 @@ import utils.metrics as metrics
 from torch.cuda.amp import GradScaler, autocast
 from utils.lanedatasetv2 import LaneDataset
 from rescbam import resnet18_cbam, resnet34_cbam, resnet50_cbam, resnet101_cbam, resnet152_cbam  # Import your CBAM-ResNet models
+# Setup CUDA
+def setup_cuda():
+    seed = 50
+    torch.backends.cudnn.enabled = True
+    torch.backends.cudnn.benchmark = True
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+    return torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
+def train_model(accumulation_steps=2):
+    model.train()
+    train_loss = 0.0
+    performance = 0
+    scaler = GradScaler()
+
+    optimizer.zero_grad()
+    for i, (img, gt) in enumerate(tqdm(train_loader, ncols=80, desc='Training')):
+        img, gt = img.to(device, dtype=torch.float), gt.to(device, dtype=torch.long)
+        
+        with autocast():
+            logits = model(img)
+            loss = loss_fn(logits, gt) / accumulation_steps
+        
+        scaler.scale(loss).backward()
+
+        if (i + 1) % accumulation_steps == 0:
+            scaler.step(optimizer)
+            scaler.update()
+            optimizer.zero_grad()
+        
+        train_loss += loss.item() * accumulation_steps
+        seg_maps = logits.cpu().detach().numpy().argmax(axis=1)
+        gt = gt.cpu().detach().numpy()
+        performance += getattr(metrics, cmd_args.metric)(seg_maps, gt)
+
+    return train_loss / len(train_loader), performance / len(train_loader)
+
+def validate_model():
+    model.eval()
+    valid_loss = 0.0
+    performance = 0
+
+    with torch.no_grad():
+        for i, (img, gt) in enumerate(valid_loader):
+            img, gt = img.to(device, dtype=torch.float), gt.to(device, dtype=torch.long)
+            
+            with autocast():
+                logits = model(img)
+                loss = loss_fn(logits, gt)
+            
+            valid_loss += loss.item()
+            seg_maps = logits.cpu().detach().numpy().argmax(axis=1)
+            gt = gt.cpu().detach().numpy()
+            performance += getattr(metrics, cmd_args.metric)(seg_maps, gt)
+
+    return valid_loss / len(valid_loader), performance / len(valid_loader)
 if __name__ == "__main__":
     # 1. Parse the command arguments
     args = argparse.ArgumentParser(description='Train a deep model for lane segmentation')
