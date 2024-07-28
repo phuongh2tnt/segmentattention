@@ -1,8 +1,12 @@
-import argparse
 import torch
+from tqdm import tqdm
+import numpy as np
+import argparse
 from torch.optim import Adam
-from segmentattention.train.traincbamunetres import setup_cuda, train_model, validate_model
-from segmentattention.train.lanedataset import LaneDataset
+import utils.metrics as metrics
+from torch.cuda.amp import GradScaler, autocast
+from utils.lanedatasetv2 import LaneDataset
+from rescbam import resnet18_cbam, resnet34_cbam, resnet50_cbam, resnet101_cbam, resnet152_cbam  # Import your CBAM-ResNet models
 
 if __name__ == "__main__":
     # 1. Parse the command arguments
@@ -25,7 +29,7 @@ if __name__ == "__main__":
     valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=cmd_args.batch_size, shuffle=False, num_workers=6)
 
     # 3. Create a segmentation model
-    from model import resnet18_cbam  # Import the correct model function
+   
     model = resnet18_cbam(pretrained=True).to(device)
 
     # 4. Specify loss function and optimizer
