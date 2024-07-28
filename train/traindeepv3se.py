@@ -5,6 +5,8 @@ import numpy as np
 import argparse
 from torch.optim import Adam
 import utils.metrics as metrics
+import torch
+import torch.nn as nn
 
 # Import the modified DeepLabV3 model with SE blocks
 from deepv3se import DeepLabV3SE  # Assuming your model is in a file named deeplabv3se.py
