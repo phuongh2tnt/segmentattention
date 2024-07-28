@@ -1,12 +1,13 @@
+"""
+UOW, 14/07/2022
+"""
 import torch
 from tqdm import tqdm
 import numpy as np
 import argparse
 from torch.optim import Adam
 import utils.metrics as metrics
-
-# Import your UNetResNetCBAM class
-from cbamunetresnet import UNetResNetCBAM, BasicBlock, Bottleneck  # Replace 'your_model_module' with the actual module name
+from rescbam import resnet18_cbam, resnet34_cbam, resnet50_cbam, resnet101_cbam, resnet152_cbam  # Import your CBAM-ResNet models
 
 # Setup CUDA
 def setup_cuda():
@@ -21,6 +22,7 @@ def setup_cuda():
 
     return torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
+
 def train_model():
     """
     Train the model over a single epoch
@@ -31,18 +33,34 @@ def train_model():
     performance = 0
 
     for i, (img, gt) in enumerate(tqdm(train_loader, ncols=80, desc='Training')):
+        # Set the gradients to zero before starting backpropagation
         optimizer.zero_grad()
+
+        # Get a batch
         img, gt = img.to(device, dtype=torch.float), gt.to(device, dtype=torch.long)
+
+        # Perform a feed-forward pass
         logits = model(img)
+
+        # Compute the batch loss
         loss = loss_fn(logits, gt)
+
+        # Compute gradient of the loss fn w.r.t the trainable weights
         loss.backward()
+
+        # Update the trainable weights
         optimizer.step()
+
+        # Accumulate the batch loss
         train_loss += loss.item()
+
+        # Accumulate the performance for every iteration
         seg_maps = logits.cpu().detach().numpy().argmax(axis=1)
         gt = gt.cpu().detach().numpy()
         performance += getattr(metrics, cmd_args.metric)(seg_maps, gt)
 
     return train_loss / len(train_loader), performance / len(train_loader)
+
 
 def validate_model():
     """
@@ -55,19 +73,29 @@ def validate_model():
 
     with torch.no_grad():
         for i, (img, gt) in enumerate(valid_loader):
+            # Get a batch
             img, gt = img.to(device, dtype=torch.float), gt.to(device, dtype=torch.long)
+
+            # Perform a feed-forward pass
             logits = model(img)
+
+            # Compute the batch loss
             loss = loss_fn(logits, gt)
+
+            # Accumulate the batch loss
             valid_loss += loss.item()
+
+            # Accumulate the performance for every iteration
             seg_maps = logits.cpu().detach().numpy().argmax(axis=1)
             gt = gt.cpu().detach().numpy()
             performance += getattr(metrics, cmd_args.metric)(seg_maps, gt)
 
     return valid_loss / len(valid_loader), performance / len(valid_loader)
 
+
 if __name__ == "__main__":
     # 1. Parse the command arguments
-    args = argparse.ArgumentParser(description='Train a deep model for segmentation')
+    args = argparse.ArgumentParser(description='Train a deep model for iris segmentation')
     args.add_argument('-d', '--dataset', default='dataset', type=str, help='Dataset folder')
     args.add_argument('-e', '--epochs', default=100, type=int, help='Number of epochs')
     args.add_argument('-b', '--batch-size', default=8, type=int, help='Batch size')
@@ -93,13 +121,8 @@ if __name__ == "__main__":
                                                shuffle=False,
                                                num_workers=6)
 
-    # 3. Create a segmentation model using UNetResNetCBAM
-    model = UNetResNetCBAM(
-    block=BasicBlock,  # or Bottleneck if you prefer
-    layers=[2, 2, 2, 2],  # Number of blocks in each ResNet layer
-    num_classes=2,  # Number of output classes
-    #in_channels=3  # Number of input channels (e.g., RGB images)
-).to(device)
+    # 3. Create a segmentation model using CBAM-ResNet
+    model = resnet18_cbam(pretrained=True).to(device)  # Change this to any CBAM-ResNet variant you want to use
 
     # 4. Specify loss function and optimizer
     loss_fn = torch.nn.CrossEntropyLoss()
@@ -109,10 +132,10 @@ if __name__ == "__main__":
     max_perf = 0
     for epoch in range(cmd_args.epochs):
         # 5.1. Train the model over a single epoch
-        train_loss, train_perf = train_model()
+        _, train_perf = train_model()
 
         # 5.2. Validate the model
-        valid_loss, valid_perf = validate_model()
+        _, valid_perf = validate_model()
 
         print('Epoch: {} \tTraining {}: {:.4f} \tValid {}: {:.4f}'.format(epoch, cmd_args.metric, train_perf,
                                                                           cmd_args.metric, valid_perf))
@@ -120,6 +143,6 @@ if __name__ == "__main__":
         # 5.3. Save the model if the validation performance is increasing
         if valid_perf > max_perf:
             print('Valid {} increased ({:.4f} --> {:.4f}). Model saved'.format(cmd_args.metric, max_perf, valid_perf))
-            torch.save(model.state_dict(), cmd_args.checkpoint + '/unet_resnet_cbam_epoch_' + str(epoch) +
+            torch.save(model.state_dict(), cmd_args.checkpoint + '/cbam_resnet18_epoch_' + str(epoch) +
                        '_' + cmd_args.metric + '_{0:.4f}'.format(valid_perf) + '.pt')
             max_perf = valid_perf
