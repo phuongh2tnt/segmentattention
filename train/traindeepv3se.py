@@ -7,7 +7,7 @@ from torch.optim import Adam
 import utils.metrics as metrics
 
 # Import the modified DeepLabV3 model with SE blocks
-from deeplabv3se import DeepLabV3SE  # Assuming your model is in a file named deeplabv3se.py
+from deepv3se import DeepLabV3SE  # Assuming your model is in a file named deeplabv3se.py
 
 # Setup CUDA
 def setup_cuda():
