@@ -5,8 +5,8 @@ import argparse
 from torch.optim import Adam
 import utils.metrics as metrics
 
-# Import your CBAMUNet class
-from cbamunet import CBAMUNet  # Replace 'cbamunet' with the actual name of your module
+# Import your UNet class
+from cbamunet import UNet  # Adjust the import to your module's name
 
 # Setup CUDA
 def setup_cuda():
@@ -81,25 +81,22 @@ if __name__ == "__main__":
     # 2. Load the dataset
     from utils.lane_dataset import LaneDataset
 
-    train_dataset = LaneDataset(dataset_dir=cmd_args.dataset, subset='train', img_size=cmd_args.img_size)
+    train_dataset = LaneDataset(dataset_dir=cmd_args.dataset, subset='test', img_size=cmd_args.img_size)
     train_loader = torch.utils.data.DataLoader(train_dataset,
                                                batch_size=cmd_args.batch_size,
                                                shuffle=True,
                                                num_workers=6)
 
-    valid_dataset = LaneDataset(dataset_dir=cmd_args.dataset, subset='valid', img_size=cmd_args.img_size)
+    valid_dataset = LaneDataset(dataset_dir=cmd_args.dataset, subset='test', img_size=cmd_args.img_size)
     valid_loader = torch.utils.data.DataLoader(valid_dataset,
                                                batch_size=cmd_args.batch_size,
                                                shuffle=False,
                                                num_workers=6)
 
-    # 3. Create a segmentation model using CBAMUNet
-    model = CBAMUNet(
-        H=cmd_args.img_size,
-        W=cmd_args.img_size,
-        ch=3,  # input channels (RGB)
-        C=64,  # embedding channels (can be adjusted)
-        num_class=2  # number of output classes (2 for binary classification)
+    # 3. Create a segmentation model using UNet
+    model = UNet(
+        in_channels=3,  # số kênh đầu vào (RGB)
+        out_channels=2  # số lớp đầu ra (2 cho phân loại nhị phân)
     ).to(device)
 
     # 4. Specify loss function and optimizer
@@ -121,6 +118,6 @@ if __name__ == "__main__":
         # 5.3. Save the model if the validation performance is increasing
         if valid_perf > max_perf:
             print('Valid {} increased ({:.4f} --> {:.4f}). Model saved'.format(cmd_args.metric, max_perf, valid_perf))
-            torch.save(model.state_dict(), cmd_args.checkpoint + '/cbamunet_epoch_' + str(epoch) +
+            torch.save(model.state_dict(), cmd_args.checkpoint + '/unet_epoch_' + str(epoch) +
                        '_' + cmd_args.metric + '_{0:.4f}'.format(valid_perf) + '.pt')
             max_perf = valid_perf
