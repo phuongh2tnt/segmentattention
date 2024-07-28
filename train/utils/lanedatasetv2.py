@@ -5,7 +5,9 @@ import torchvision.transforms as T
 import numpy as np
 import torch
 import warnings
+
 warnings.filterwarnings('ignore')
+
 
 class LaneDataset(Dataset):
     def __init__(self, dataset_dir='segmentattention/train/dataset/', subset='test', img_size=480):
@@ -15,15 +17,15 @@ class LaneDataset(Dataset):
         :param img_size: image size
         """
         super(LaneDataset, self).__init__()
-        self.filenames = collections.defaultdict(list)
         self.img_size = img_size
         self.resize_img = T.Resize((img_size, img_size), interpolation=T.InterpolationMode.BILINEAR)
         self.resize_gt = T.Resize((img_size, img_size), interpolation=T.InterpolationMode.NEAREST)
         self.subset = subset
-         #self.data_path = dataset_dir + '/' + subset
+        #self.data_path = dataset_dir + '/' + subset
         self.data_path="segmentattention/train/dataset/test"
         #text_file = "{}/{}/{}.txt".format(dataset_dir, subset, subset)
         text_file = "segmentattention/train/dataset/test/test.txt"
+        
         # Read the text file
         with open(text_file, 'r') as f:
             self.filenames = f.read().splitlines()
