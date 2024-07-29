@@ -1,10 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-def conv3x3(in_planes, out_planes, stride=1):
-    "3x3 convolution with padding"
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
+from torchvision import models
 
 class ChannelAttention(nn.Module):
     def __init__(self, in_planes, ratio=16):
@@ -36,6 +33,7 @@ class SpatialAttention(nn.Module):
         x = torch.cat([avg_out, max_out], dim=1)
         x = self.conv1(x)
         return self.sigmoid(x)
+
 class ASPP(nn.Module):
     def __init__(self, in_channels, out_channels):
         super(ASPP, self).__init__()
@@ -65,7 +63,6 @@ class ASPP(nn.Module):
         x = self.relu(self.bn5(self.conv5(x)))
 
         return x
-from torchvision import models
 
 class DeepLabV3_CBAM(nn.Module):
     def __init__(self, n_classes):
@@ -85,10 +82,7 @@ class DeepLabV3_CBAM(nn.Module):
         self.sa = SpatialAttention()
 
         self.decoder = nn.Sequential(
-            nn.Conv2d(256, 48, kernel_size=1, bias=False),
-            nn.BatchNorm2d(48),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(48 + 256, 256, kernel_size=3, padding=1, bias=False),  # Updated channels here
+            nn.Conv2d(256 + 48, 256, kernel_size=3, padding=1, bias=False),
             nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
             nn.Conv2d(256, n_classes, kernel_size=1)
@@ -113,9 +107,9 @@ class DeepLabV3_CBAM(nn.Module):
 
         # Decoder
         x5 = F.interpolate(x5, size=x1.size()[2:], mode='bilinear', align_corners=False)
-        x1 = self.decoder[0](x1)
+        x1 = F.interpolate(x1, size=x5.size()[2:], mode='bilinear', align_corners=False)
         x = torch.cat([x1, x5], dim=1)
-        x = self.decoder[1:](x)
+        x = self.decoder(x)
         x = F.interpolate(x, size=input_size, mode='bilinear', align_corners=False)
 
         return x
