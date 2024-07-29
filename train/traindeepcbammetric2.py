@@ -99,12 +99,19 @@ if __name__ == "__main__":
     cmd_args = parser.parse_args()
     device = setup_cuda()
 
+     from utils.lane_dataset import LaneDataset
+
     train_dataset = LaneDataset(dataset_dir=cmd_args.dataset, subset='test', img_size=cmd_args.img_size)
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=cmd_args.batch_size, shuffle=True, num_workers=6)
+    train_loader = torch.utils.data.DataLoader(train_dataset,
+                                               batch_size=cmd_args.batch_size,
+                                               shuffle=True,
+                                               num_workers=6)
 
     valid_dataset = LaneDataset(dataset_dir=cmd_args.dataset, subset='test', img_size=cmd_args.img_size)
-    valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=cmd_args.batch_size, shuffle=False, num_workers=6)
-
+    valid_loader = torch.utils.data.DataLoader(valid_dataset,
+                                               batch_size=cmd_args.batch_size,
+                                               shuffle=False,
+                                               num_workers=6)
     model = DeepLabV3_CBAM(n_classes=2).to(device)  # Adjust the number of classes as needed
 
     loss_fn = torch.nn.CrossEntropyLoss()
