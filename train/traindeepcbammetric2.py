@@ -7,7 +7,7 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 import numpy as np
-from utils.metric2 import IoU, accuracy, precision, f1_score, recall  # Assuming you have these functions in your metric.py
+from utils.metric2 import iou, accuracy, precision, f1_score, recall  # Assuming you have these functions in your metric.py
 from utils.lane_dataset import LaneDataset  # Assuming this is where LaneDataset is defined
 import argparse
 from torch.cuda.amp import GradScaler, autocast
@@ -47,7 +47,7 @@ def train_model(accumulation_steps=2):
         
         train_loss += loss.item() * accumulation_steps
         prediction = logits.argmax(axis=1)
-        train_iou += IoU(prediction, gt)
+        train_iou += iou(prediction, gt)
         train_acc += accuracy(prediction, gt)
         train_pre += precision(prediction, gt)
         train_rec += recall(prediction, gt)
@@ -72,7 +72,7 @@ def validate_model():
             
             valid_loss += loss.item()
             prediction = logits.argmax(axis=1)
-            val_iou += IoU(prediction, gt)
+            val_iou += iou(prediction, gt)
             val_acc += accuracy(prediction, gt)
             val_pre += precision(prediction, gt)
             val_rec += recall(prediction, gt)
