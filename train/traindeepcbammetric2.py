@@ -7,7 +7,7 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 import numpy as np
-from utils.metrics import IoU, accuracy, precision, f1_score, recall  # Assuming you have these functions in your metric.py
+from utils.metric2 import IoU, accuracy, precision, f1_score, recall  # Assuming you have these functions in your metric.py
 from utils.lane_dataset import LaneDataset  # Assuming this is where LaneDataset is defined
 import argparse
 from torch.cuda.amp import GradScaler, autocast
