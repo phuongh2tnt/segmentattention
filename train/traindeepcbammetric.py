@@ -3,68 +3,51 @@ from tqdm import tqdm
 import numpy as np
 import argparse
 from torch.optim import Adam
-#import utils.metrics as metrics
 from torch.cuda.amp import GradScaler, autocast
-from torchmetrics.functional import precision, recall, f1_score
+from torchmetrics.functional import precision as torch_precision, recall as torch_recall, f1_score as torch_f1_score
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
 import torchvision.transforms as transforms
-from torchmetrics.functional import accuracy
-from torchmetrics.functional import precision, f1_score, recall
 from torchvision.transforms import ToTensor, Resize
-import numpy as np
-# Import your DeepLabV3_CBAM class
-from deepcbam import DeepLabV3_CBAM  # 
+from deepcbam import DeepLabV3_CBAM
+
 def iou(preds, labels):
     """Calculate Intersection over Union (IoU)."""
     intersection = np.logical_and(preds, labels)
     union = np.logical_or(preds, labels)
     return np.sum(intersection) / np.sum(union) if np.sum(union) != 0 else 0
 
-def precision(preds, labels):
+def custom_precision(preds, labels):
     """Calculate Precision."""
     true_positive = np.sum((preds == 1) & (labels == 1))
     false_positive = np.sum((preds == 1) & (labels == 0))
     return true_positive / (true_positive + false_positive) if (true_positive + false_positive) != 0 else 0
 
-def recall(preds, labels):
+def custom_recall(preds, labels):
     """Calculate Recall."""
     true_positive = np.sum((preds == 1) & (labels == 1))
     false_negative = np.sum((preds == 0) & (labels == 1))
     return true_positive / (true_positive + false_negative) if (true_positive + false_negative) != 0 else 0
 
-def f1_score(preds, labels):
+def custom_f1_score(preds, labels):
     """Calculate F1 Score."""
-    prec = precision(preds, labels)
-    rec = recall(preds, labels)
+    prec = custom_precision(preds, labels)
+    rec = custom_recall(preds, labels)
     return 2 * (prec * rec) / (prec + rec) if (prec + rec) != 0 else 0
-
-# Setup CUDA
-def setup_cuda():
-    seed = 50
-    torch.backends.cudnn.enabled = True
-    torch.backends.cudnn.benchmark = True
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed(seed)
-    return torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 def calculate_metrics(logits, gt):
     """ Calculate precision, recall, F1-score and IoU """
-    seg_maps = logits.argmax(axis=1)
+    seg_maps = logits.argmax(dim=1)  # Changed axis to dim for PyTorch tensors
     gt = gt.cpu().numpy()
     seg_maps = seg_maps.cpu().numpy()
     
-    # Assuming IoU function is in utils.metrics
-    iou = metrics.iou(seg_maps, gt)
-    
-    precision_score = precision(torch.tensor(seg_maps), torch.tensor(gt), task='multiclass', average='macro', num_classes=2).item()
-    recall_score = recall(torch.tensor(seg_maps), torch.tensor(gt), task='multiclass', average='macro', num_classes=2).item()
-    f1 = f1_score(torch.tensor(seg_maps), torch.tensor(gt), task='multiclass', average='macro', num_classes=2).item()
+    iou_value = iou(seg_maps, gt)
+    precision_score = torch_precision(torch.tensor(seg_maps), torch.tensor(gt), task='multiclass', average='macro', num_classes=2).item()
+    recall_score = torch_recall(torch.tensor(seg_maps), torch.tensor(gt), task='multiclass', average='macro', num_classes=2).item()
+    f1 = torch_f1_score(torch.tensor(seg_maps), torch.tensor(gt), task='multiclass', average='macro', num_classes=2).item()
 
-    return iou, precision_score, recall_score, f1
+    return iou_value, precision_score, recall_score, f1
 
 def train_model(accumulation_steps=2):
     model.train()
@@ -128,7 +111,7 @@ if __name__ == "__main__":
     args = argparse.ArgumentParser(description='Train a deep model for iris segmentation')
     args.add_argument('-d', '--dataset', default='dataset', type=str, help='Dataset folder')
     args.add_argument('-e', '--epochs', default=100, type=int, help='Number of epochs')
-    args.add_argument('-b', '--batch-size', default=4, type=int, help='Batch size')  # Adjusted batch size
+    args.add_argument('-b', '--batch-size', default=4, type=int, help='Batch size')
     args.add_argument('-i', '--img-size', default=480, type=int, help='Image size')
     args.add_argument('-c', '--checkpoint', default='segmentattention/train/checkpoints', type=str, help='Checkpoint folder')
     args.add_argument('-t', '--metric', default='iou', type=str, help='Metric for optimization')
@@ -217,5 +200,4 @@ if __name__ == "__main__":
     plt.savefig('/content/drive/My Drive/AI/deepcbam/trainval_F1.png')
 
     plt.tight_layout()
-    #plt.savefig(cmd_args.checkpoint + '/metrics.png')
     plt.show()
