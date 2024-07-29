@@ -121,7 +121,7 @@ def validate_model():
 if __name__ == "__main__":
     args = argparse.ArgumentParser(description='Train a deep model for iris segmentation')
     args.add_argument('-d', '--dataset', default='dataset', type=str, help='Dataset folder')
-    args.add_argument('-e', '--epochs', default=100, type=int, help='Number of epochs')
+    args.add_argument('-e', '--epochs', default=10, type=int, help='Number of epochs')
     args.add_argument('-b', '--batch-size', default=4, type=int, help='Batch size')
     args.add_argument('-i', '--img-size', default=480, type=int, help='Image size')
     args.add_argument('-c', '--checkpoint', default='segmentattention/train/checkpoints', type=str, help='Checkpoint folder')
