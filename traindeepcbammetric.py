@@ -138,7 +138,7 @@ if __name__ == "__main__":
 
         if valid_iou > max_perf:
             print(f'Validation IoU increased ({max_perf} --> {valid_iou}). Model saved')
-            torch.save(model.state_dict(), cmd_args.checkpoint + '/deeplabv3_cbam_epoch_' + str(epoch) +
+            torch.save(model.state_dict(), '/content/drive/My Drive/AI/deepcbam/checkpoints/deepcbam_epoch_' + str(epoch) +
                        '_' + cmd_args.metric + '_{0:.4f}'.format(valid_iou) + '.pt')
             max_perf = valid_iou
 
@@ -155,6 +155,7 @@ if __name__ == "__main__":
     plt.title('IoU vs. Epochs')
     plt.legend()
     plt.grid(True)
+    plt.savefig('/content/drive/My Drive/AI/deepcbam/trainval_IOU.png')
 
     plt.subplot(2, 2, 2)
     plt.plot(epochs_list, [train_precision for _ in range(cmd_args.epochs)], label='Train Precision')
@@ -164,6 +165,7 @@ if __name__ == "__main__":
     plt.title('Precision vs. Epochs')
     plt.legend()
     plt.grid(True)
+    plt.savefig('/content/drive/My Drive/AI/deepcbam/trainval_Precision.png')
 
     plt.subplot(2, 2, 3)
     plt.plot(epochs_list, [train_recall for _ in range(cmd_args.epochs)], label='Train Recall')
@@ -173,16 +175,18 @@ if __name__ == "__main__":
     plt.title('Recall vs. Epochs')
     plt.legend()
     plt.grid(True)
+    plt.savefig('/content/drive/My Drive/AI/deepcbam/trainval_Recall.png')
 
     plt.subplot(2, 2, 4)
-    plt.plot(epochs_list, [train_f1 for _ in range(cmd_args.epochs)], label='Train F1')
-    plt.plot(epochs_list, [valid_f1 for _ in range(cmd_args.epochs)], label='Validation F1')
+    plt.plot(epochs_list, [train_f1 for _ in range(cmd_args.epochs)], label='Train F1-score')
+    plt.plot(epochs_list, [valid_f1 for _ in range(cmd_args.epochs)], label='Validation F1-score')
     plt.xlabel('Epoch')
     plt.ylabel('F1 Score')
     plt.title('F1 Score vs. Epochs')
     plt.legend()
     plt.grid(True)
+    plt.savefig('/content/drive/My Drive/AI/deepcbam/trainval_F1.png')
 
     plt.tight_layout()
-    plt.savefig(cmd_args.checkpoint + '/metrics.png')
+    #plt.savefig(cmd_args.checkpoint + '/metrics.png')
     plt.show()
