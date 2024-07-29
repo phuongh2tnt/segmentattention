@@ -6,8 +6,7 @@ from torch.optim import Adam
 import utils.metrics as metrics
 
 # Import your SwinDeepLabV3 class
-from deepswin import SwinDeepLabV3  # Replace 'your_module_name' with the actual module name
-
+from deepswin import SwinDeepLabV3  
 # Setup CUDA
 def setup_cuda():
     # Setting seeds for reproducibility
