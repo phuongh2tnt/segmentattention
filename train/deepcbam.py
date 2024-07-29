@@ -88,7 +88,7 @@ class DeepLabV3_CBAM(nn.Module):
             nn.Conv2d(256, 48, kernel_size=1, bias=False),
             nn.BatchNorm2d(48),
             nn.ReLU(inplace=True),
-            nn.Conv2d(304, 256, kernel_size=3, padding=1, bias=False),
+            nn.Conv2d(48 + 256, 256, kernel_size=3, padding=1, bias=False),  # Updated channels here
             nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
             nn.Conv2d(256, n_classes, kernel_size=1)
