@@ -7,11 +7,10 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 import numpy as np
-from utils.metric2 import iou, accuracy, precision, f1_score, recall  # Assuming you have these functions in your metric.py
-from utils.lane_dataset import LaneDataset  # Assuming this is where LaneDataset is defined
 import argparse
 from torch.cuda.amp import GradScaler, autocast
-from deepcbam import DeepLabV3_CBAM
+from metric import accuracy, iou, f1, precision, recall  # Import your metrics
+
 # Setup CUDA
 def setup_cuda():
     seed = 50
@@ -27,7 +26,7 @@ def setup_cuda():
 def train_model(accumulation_steps=2):
     model.train()
     train_loss = 0.0
-    train_iou, train_acc, train_pre, train_rec, train_f1 = 0, 0, 0, 0, 0
+    train_metrics = {'iou': 0, 'accuracy': 0, 'precision': 0, 'recall': 0, 'f1': 0}
     scaler = GradScaler()
 
     optimizer.zero_grad()
@@ -46,21 +45,24 @@ def train_model(accumulation_steps=2):
             optimizer.zero_grad()
         
         train_loss += loss.item() * accumulation_steps
-        prediction = logits.argmax(axis=1)
-        train_iou += iou(prediction, gt)
-        train_acc += accuracy(prediction, gt)
-        train_pre += precision(prediction, gt)
-        train_rec += recall(prediction, gt)
-        train_f1 += f1_score(prediction, gt)
+        prediction = logits.argmax(axis=1).cpu().numpy()
+        gt = gt.cpu().numpy()
+        train_metrics['iou'] += iou(prediction, gt)
+        train_metrics['accuracy'] += accuracy(prediction, gt)
+        train_metrics['precision'] += precision(prediction, gt)
+        train_metrics['recall'] += recall(prediction, gt)
+        train_metrics['f1'] += f1(prediction, gt)
 
-    return train_loss / len(train_loader), train_iou / len(train_loader), train_acc / len(train_loader), \
-           train_pre / len(train_loader), train_rec / len(train_loader), train_f1 / len(train_loader)
+    for key in train_metrics:
+        train_metrics[key] /= len(train_loader)
+
+    return train_loss / len(train_loader), train_metrics
 
 # Validation function
 def validate_model():
     model.eval()
     valid_loss = 0.0
-    val_iou, val_acc, val_pre, val_rec, val_f1 = 0, 0, 0, 0, 0
+    val_metrics = {'iou': 0, 'accuracy': 0, 'precision': 0, 'recall': 0, 'f1': 0}
 
     with torch.no_grad():
         for i, (img, gt) in enumerate(tqdm(valid_loader, ncols=80, desc='Validating')):
@@ -71,15 +73,18 @@ def validate_model():
                 loss = loss_fn(logits, gt)
             
             valid_loss += loss.item()
-            prediction = logits.argmax(axis=1)
-            val_iou += iou(prediction, gt)
-            val_acc += accuracy(prediction, gt)
-            val_pre += precision(prediction, gt)
-            val_rec += recall(prediction, gt)
-            val_f1 += f1_score(prediction, gt)
+            prediction = logits.argmax(axis=1).cpu().numpy()
+            gt = gt.cpu().numpy()
+            val_metrics['iou'] += iou(prediction, gt)
+            val_metrics['accuracy'] += accuracy(prediction, gt)
+            val_metrics['precision'] += precision(prediction, gt)
+            val_metrics['recall'] += recall(prediction, gt)
+            val_metrics['f1'] += f1(prediction, gt)
 
-    return valid_loss / len(valid_loader), val_iou / len(valid_loader), val_acc / len(valid_loader), \
-           val_pre / len(valid_loader), val_rec / len(valid_loader), val_f1 / len(valid_loader)
+    for key in val_metrics:
+        val_metrics[key] /= len(valid_loader)
+
+    return valid_loss / len(valid_loader), val_metrics
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train a deep model for iris segmentation')
@@ -104,42 +109,34 @@ if __name__ == "__main__":
     loss_fn = torch.nn.CrossEntropyLoss()
     optimizer = Adam(model.parameters(), lr=0.001)
 
-    train_metrics = {'loss': [], 'iou': [], 'acc': [], 'pre': [], 'rec': [], 'f1': []}
-    val_metrics = {'loss': [], 'iou': [], 'acc': [], 'pre': [], 'rec': [], 'f1': []}
+    train_history = {'loss': [], 'iou': [], 'accuracy': [], 'precision': [], 'recall': [], 'f1': []}
+    val_history = {'loss': [], 'iou': [], 'accuracy': [], 'precision': [], 'recall': [], 'f1': []}
 
     max_perf = 0
     for epoch in range(cmd_args.epochs):
-        train_loss, train_iou, train_acc, train_pre, train_rec, train_f1 = train_model()
-        val_loss, val_iou, val_acc, val_pre, val_rec, val_f1 = validate_model()
+        train_loss, train_metrics = train_model()
+        val_loss, val_metrics = validate_model()
 
-        print('Epoch: {} \tTraining {}: {:.4f} \tValid {}: {:.4f}'.format(epoch, cmd_args.metric, train_iou, cmd_args.metric, val_iou))
+        print(f'Epoch: {epoch} \tTraining {cmd_args.metric}: {train_metrics[cmd_args.metric]:.4f} \tValid {cmd_args.metric}: {val_metrics[cmd_args.metric]:.4f}')
 
-        train_metrics['loss'].append(train_loss)
-        train_metrics['iou'].append(train_iou)
-        train_metrics['acc'].append(train_acc)
-        train_metrics['pre'].append(train_pre)
-        train_metrics['rec'].append(train_rec)
-        train_metrics['f1'].append(train_f1)
+        train_history['loss'].append(train_loss)
+        val_history['loss'].append(val_loss)
+        for key in train_metrics:
+            train_history[key].append(train_metrics[key])
+            val_history[key].append(val_metrics[key])
 
-        val_metrics['loss'].append(val_loss)
-        val_metrics['iou'].append(val_iou)
-        val_metrics['acc'].append(val_acc)
-        val_metrics['pre'].append(val_pre)
-        val_metrics['rec'].append(val_rec)
-        val_metrics['f1'].append(val_f1)
-
-        if val_iou > max_perf:
-            print('Valid {} increased ({:.4f} --> {:.4f}). Model saved'.format(cmd_args.metric, max_perf, val_iou))
-            torch.save(model.state_dict(), cmd_args.checkpoint + '/deeplabv3_cbam_epoch_' + str(epoch) + '_' + cmd_args.metric + '_{0:.4f}'.format(val_iou) + '.pt')
-            max_perf = val_iou
+        if val_metrics[cmd_args.metric] > max_perf:
+            print(f'Valid {cmd_args.metric} increased ({max_perf:.4f} --> {val_metrics[cmd_args.metric]:.4f}). Model saved')
+            torch.save(model.state_dict(), f"{cmd_args.checkpoint}/deeplabv3_cbam_epoch_{epoch}_{cmd_args.metric}_{val_metrics[cmd_args.metric]:.4f}.pt")
+            max_perf = val_metrics[cmd_args.metric]
 
     epochs_range = range(cmd_args.epochs)
-    for metric_name, train_values in train_metrics.items():
+    for metric_name in train_history:
         plt.figure()
-        plt.plot(epochs_range, train_values, label=f'Training {metric_name}')
-        plt.plot(epochs_range, val_metrics[metric_name], label=f'Validation {metric_name}')
+        plt.plot(epochs_range, train_history[metric_name], label=f'Training {metric_name}')
+        plt.plot(epochs_range, val_history[metric_name], label=f'Validation {metric_name}')
         plt.xlabel('Epochs')
-        plt.ylabel(metric_name)
+        plt.ylabel(metric_name.capitalize())
         plt.title(f'{metric_name.capitalize()} vs. Epochs')
         plt.legend()
         plt.grid(True)
