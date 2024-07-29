@@ -12,6 +12,17 @@ import torchvision.transforms as transforms
 from torchvision.transforms import ToTensor, Resize
 from deepcbam import DeepLabV3_CBAM
 
+
+# Setup CUDA
+def setup_cuda():
+    seed = 50
+    torch.backends.cudnn.enabled = True
+    torch.backends.cudnn.benchmark = True
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+    return torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 def iou(preds, labels):
     """Calculate Intersection over Union (IoU)."""
     intersection = np.logical_and(preds, labels)
