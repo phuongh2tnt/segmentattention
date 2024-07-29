@@ -11,7 +11,7 @@ from utils.metric2 import iou, accuracy, precision, f1_score, recall  # Assuming
 from utils.lane_dataset import LaneDataset  # Assuming this is where LaneDataset is defined
 import argparse
 from torch.cuda.amp import GradScaler, autocast
-
+from deepcbam import DeepLabV3_CBAM
 # Setup CUDA
 def setup_cuda():
     seed = 50
