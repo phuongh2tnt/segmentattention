@@ -10,6 +10,29 @@ import matplotlib.pyplot as plt
 
 # Import your DeepLabV3_CBAM class
 from deepcbam import DeepLabV3_CBAM  # 
+def iou(preds, labels):
+    """Calculate Intersection over Union (IoU)."""
+    intersection = np.logical_and(preds, labels)
+    union = np.logical_or(preds, labels)
+    return np.sum(intersection) / np.sum(union) if np.sum(union) != 0 else 0
+
+def precision(preds, labels):
+    """Calculate Precision."""
+    true_positive = np.sum((preds == 1) & (labels == 1))
+    false_positive = np.sum((preds == 1) & (labels == 0))
+    return true_positive / (true_positive + false_positive) if (true_positive + false_positive) != 0 else 0
+
+def recall(preds, labels):
+    """Calculate Recall."""
+    true_positive = np.sum((preds == 1) & (labels == 1))
+    false_negative = np.sum((preds == 0) & (labels == 1))
+    return true_positive / (true_positive + false_negative) if (true_positive + false_negative) != 0 else 0
+
+def f1_score(preds, labels):
+    """Calculate F1 Score."""
+    prec = precision(preds, labels)
+    rec = recall(preds, labels)
+    return 2 * (prec * rec) / (prec + rec) if (prec + rec) != 0 else 0
 
 # Setup CUDA
 def setup_cuda():
