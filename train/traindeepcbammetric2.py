@@ -9,7 +9,8 @@ import torchvision.transforms as transforms
 import numpy as np
 import argparse
 from torch.cuda.amp import GradScaler, autocast
-from metric import accuracy, iou, f1, precision, recall  # Import your metrics
+from utils.metric2 import accuracy, iou, f1, precision, recall  # Import your metrics
+from deepcbam import DeepLabV3_CBAM
 
 # Setup CUDA
 def setup_cuda():
