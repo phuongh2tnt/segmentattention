@@ -99,7 +99,7 @@ if __name__ == "__main__":
     cmd_args = parser.parse_args()
     device = setup_cuda()
 
-     from utils.lane_dataset import LaneDataset
+    from utils.lane_dataset import LaneDataset
 
     train_dataset = LaneDataset(dataset_dir=cmd_args.dataset, subset='test', img_size=cmd_args.img_size)
     train_loader = torch.utils.data.DataLoader(train_dataset,
