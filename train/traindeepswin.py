@@ -6,7 +6,8 @@ from torch.optim import Adam
 import utils.metrics as metrics
 
 # Import your SwinDeepLabV3 class
-from deepswin import SwinDeepLabV3  
+from deepswin import SwinDeepLabV3 
+
 # Setup CUDA
 def setup_cuda():
     # Setting seeds for reproducibility
@@ -33,6 +34,8 @@ def train_model():
         optimizer.zero_grad()
         img, gt = img.to(device, dtype=torch.float), gt.to(device, dtype=torch.long)
         logits = model(img)
+        # Upsample logits to match the size of gt
+        logits = torch.nn.functional.interpolate(logits, size=gt.shape[1:], mode='bilinear', align_corners=False)
         loss = loss_fn(logits, gt)
         loss.backward()
         optimizer.step()
@@ -56,6 +59,8 @@ def validate_model():
         for i, (img, gt) in enumerate(valid_loader):
             img, gt = img.to(device, dtype=torch.float), gt.to(device, dtype=torch.long)
             logits = model(img)
+            # Upsample logits to match the size of gt
+            logits = torch.nn.functional.interpolate(logits, size=gt.shape[1:], mode='bilinear', align_corners=False)
             loss = loss_fn(logits, gt)
             valid_loss += loss.item()
             seg_maps = logits.cpu().detach().numpy().argmax(axis=1)
